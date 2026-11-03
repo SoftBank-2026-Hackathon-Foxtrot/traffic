@@ -30,6 +30,25 @@ docker run -d --name testapp --restart unless-stopped \
 
 헬스체크 실패 흉내: `docker exec testapp touch /tmp/testapp-not-ready`, 되돌리기: `docker exec testapp rm /tmp/testapp-not-ready`
 
+## 서버에 올리기
+
+레포가 비공개라 서버에서 clone할 수 없으므로, testapp 파일을 담은 초기화 스크립트를 만들어 VM 생성 때 넘긴다(AWS `user_data`, GCP `startup-script`). 비밀값은 들어가지 않는다.
+
+```bash
+testapp/make-init.sh aws > init-aws.sh    # gcp, onprem도 같다
+```
+
+생성된 스크립트는 Docker(`docker.io`)를 설치하고 testapp을 빌드해 위 명령으로 실행한다. GCP는 부팅마다 다시 실행하므로 이미 있으면 건너뛴다.
+
+마지막에 `testapp-check: readyz=<코드> x-served-by=<환경>`을 부팅 로그에 남기므로 셸 없이 확인할 수 있다.
+
+```bash
+aws ec2 get-console-output --instance-id <ID> --latest --output text | grep testapp-check
+gcloud compute instances get-serial-port-output <이름> --zone <존> | grep testapp-check
+```
+
+확인(2026-11-03): EC2 t4g.small(arm64)에서 부팅 약 170초, GCE e2-small(x86)에서 약 75초 뒤 `readyz=200`.
+
 ## 종료 순서
 
 SIGTERM → `/readyz` 즉시 503, 다른 요청은 `DRAIN_S` 동안 정상 처리 → 새 연결 거부, 처리 중인 요청은 끝까지 처리 → 종료.
