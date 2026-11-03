@@ -1,0 +1,23 @@
+# 비밀값: 실제 값은 Foxtrot/.env(레포 바깥)에만 둔다
+.env
+.env.*
+!.env.example
+*.pem
+*token*.json
+credentials.json
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# k6 실행 결과
+k6/results/
+
+.DS_Store
