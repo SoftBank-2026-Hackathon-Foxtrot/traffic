@@ -1,0 +1,18 @@
+services:
+  traffic:
+    build: ./server
+    environment:
+      TRAFFIC_SERVICE_TOKEN: "${TRAFFIC_SERVICE_TOKEN:?set TRAFFIC_SERVICE_TOKEN}"
+      CF_API_TOKEN: "${CF_API_TOKEN:?set CF_API_TOKEN}"
+      CF_ZONE_ID: "${CF_ZONE_ID:?set CF_ZONE_ID}"
+      CF_ACCOUNT_ID: "${CF_ACCOUNT_ID:?set CF_ACCOUNT_ID}"
+      CF_LB_ID: "${CF_LB_ID:?set CF_LB_ID}"
+      CF_POOL_IDS: "${CF_POOL_IDS:?set CF_POOL_IDS}"
+    ports:
+      - "127.0.0.1:${TRAFFIC_HOST_PORT:-8001}:8001"
+    volumes:
+      - traffic-data:/var/lib/foxtrot/traffic
+    stop_grace_period: 1m
+
+volumes:
+  traffic-data:

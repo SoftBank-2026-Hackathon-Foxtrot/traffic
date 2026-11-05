@@ -1,0 +1,786 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Foxtrot Traffic Control API",
+    "version": "1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/traffic/status": {
+      "get": {
+        "summary": "Platform Status",
+        "operationId": "getTrafficStatus",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "UPSTREAM_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "serviceToken": []
+          }
+        ]
+      }
+    },
+    "/v1/traffic/actions": {
+      "post": {
+        "summary": "Platform Action",
+        "operationId": "submitTrafficAction",
+        "security": [
+          {
+            "serviceToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SetWeights"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Rollback"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Reconcile"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "action",
+                  "mapping": {
+                    "SET_WEIGHTS": "#/components/schemas/SetWeights",
+                    "ROLLBACK": "#/components/schemas/Rollback",
+                    "RECONCILE": "#/components/schemas/Reconcile"
+                  }
+                },
+                "title": "Command"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until next poll",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_REQUEST",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "REVISION_CONFLICT, IDEMPOTENCY_CONFLICT, RESOURCE_BUSY, UNKNOWN_STATE, INVALID_STATE or ROLLBACK_SCOPE_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "PRECONDITION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operations/{operation_id}": {
+      "get": {
+        "summary": "Platform Operation",
+        "operationId": "getTrafficOperation",
+        "security": [
+          {
+            "serviceToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Operation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until next poll",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Accepted": {
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "title": "Operationid"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "SET_WEIGHTS",
+              "ROLLBACK",
+              "RECONCILE"
+            ],
+            "title": "Action"
+          },
+          "status": {
+            "type": "string",
+            "const": "QUEUED",
+            "title": "Status"
+          },
+          "statusUrl": {
+            "type": "string",
+            "title": "Statusurl"
+          }
+        },
+        "type": "object",
+        "required": [
+          "operationId",
+          "action",
+          "status",
+          "statusUrl"
+        ],
+        "title": "Accepted"
+      },
+      "ChangeResult": {
+        "properties": {
+          "weights": {
+            "additionalProperties": {
+              "type": "number",
+              "maximum": 100.0,
+              "minimum": 0.0
+            },
+            "type": "object",
+            "title": "Weights"
+          },
+          "traffic_verified": {
+            "type": "boolean",
+            "const": false,
+            "title": "Traffic Verified"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weights",
+          "traffic_verified"
+        ],
+        "title": "ChangeResult"
+      },
+      "Error": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "operationId": {
+            "type": "null",
+            "title": "Operationid"
+          },
+          "blockers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blockers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "operationId",
+          "blockers"
+        ],
+        "title": "Error"
+      },
+      "Operation": {
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "title": "Operationid"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "SET_WEIGHTS",
+              "ROLLBACK",
+              "RECONCILE"
+            ],
+            "title": "Action"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED",
+              "UNKNOWN"
+            ],
+            "title": "Status"
+          },
+          "beforeWeights": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number",
+                  "maximum": 100.0,
+                  "minimum": 0.0
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beforeweights"
+          },
+          "afterWeights": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number",
+                  "maximum": 100.0,
+                  "minimum": 0.0
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Afterweights"
+          },
+          "migrationId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Migrationid"
+          },
+          "transitionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transitionid"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecoveryResult"
+              },
+              {
+                "$ref": "#/components/schemas/ChangeResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "operationId",
+          "action",
+          "status",
+          "beforeWeights",
+          "afterWeights",
+          "migrationId",
+          "transitionId",
+          "result",
+          "error"
+        ],
+        "title": "Operation"
+      },
+      "Reconcile": {
+        "properties": {
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          },
+          "migrationId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Migrationid"
+          },
+          "transitionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transitionid",
+            "description": "Requires migrationId."
+          },
+          "action": {
+            "type": "string",
+            "const": "RECONCILE",
+            "title": "Action"
+          },
+          "weights": {
+            "type": "null",
+            "title": "Weights"
+          },
+          "unknownOperationId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Unknownoperationid"
+          },
+          "executorStoppedRef": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Executorstoppedref"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expectedRevision",
+          "action",
+          "unknownOperationId",
+          "executorStoppedRef"
+        ],
+        "title": "Reconcile"
+      },
+      "RecoveryResult": {
+        "properties": {
+          "weights": {
+            "additionalProperties": {
+              "type": "number",
+              "maximum": 100.0,
+              "minimum": 0.0
+            },
+            "type": "object",
+            "title": "Weights"
+          },
+          "traffic_verified": {
+            "type": "boolean",
+            "const": false,
+            "title": "Traffic Verified"
+          },
+          "disposition": {
+            "type": "string",
+            "enum": [
+              "APPLIED",
+              "NO_CHANGE"
+            ],
+            "title": "Disposition"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weights",
+          "traffic_verified",
+          "disposition"
+        ],
+        "title": "RecoveryResult"
+      },
+      "Rollback": {
+        "properties": {
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          },
+          "migrationId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Migrationid"
+          },
+          "transitionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transitionid",
+            "description": "Requires migrationId."
+          },
+          "action": {
+            "type": "string",
+            "const": "ROLLBACK",
+            "title": "Action"
+          },
+          "weights": {
+            "type": "null",
+            "title": "Weights"
+          },
+          "unknownOperationId": {
+            "type": "null",
+            "title": "Unknownoperationid"
+          },
+          "executorStoppedRef": {
+            "type": "null",
+            "title": "Executorstoppedref"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expectedRevision",
+          "action"
+        ],
+        "title": "Rollback"
+      },
+      "SetWeights": {
+        "properties": {
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expectedrevision"
+          },
+          "migrationId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Migrationid"
+          },
+          "transitionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transitionid",
+            "description": "Requires migrationId."
+          },
+          "action": {
+            "type": "string",
+            "const": "SET_WEIGHTS",
+            "title": "Action"
+          },
+          "weights": {
+            "additionalProperties": {
+              "type": "number",
+              "maximum": 100.0,
+              "minimum": 0.0
+            },
+            "type": "object",
+            "minProperties": 1,
+            "title": "Weights",
+            "description": "All configured pools; total must be 100."
+          },
+          "unknownOperationId": {
+            "type": "null",
+            "title": "Unknownoperationid"
+          },
+          "executorStoppedRef": {
+            "type": "null",
+            "title": "Executorstoppedref"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expectedRevision",
+          "action",
+          "weights"
+        ],
+        "title": "SetWeights"
+      },
+      "Status": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "unknownOperationIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unknownoperationids"
+          },
+          "weights": {
+            "additionalProperties": {
+              "type": "number",
+              "maximum": 100.0,
+              "minimum": 0.0
+            },
+            "type": "object",
+            "title": "Weights"
+          },
+          "pool_health": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Pool Health"
+          },
+          "last_changed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Changed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision",
+          "unknownOperationIds",
+          "weights",
+          "pool_health",
+          "last_changed_at"
+        ],
+        "title": "Status"
+      }
+    },
+    "securitySchemes": {
+      "serviceToken": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
