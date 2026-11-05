@@ -16,8 +16,13 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+server/traffic.db*
 
 # k6 실행 결과
 k6/results/
 
 .DS_Store
+
+# 로컬 작업 기록
+/docs/logs/token-usage.md
+/.token-usage/
