@@ -11,7 +11,7 @@ RUN python -m pip install --no-cache-dir -r requirements.txt \
     && useradd --uid 10001 --gid traffic --no-create-home traffic \
     && install -d -o traffic -g traffic /var/lib/foxtrot/traffic
 
-COPY __init__.py cloudflare.py contract.py main.py ./server/
+COPY __init__.py cloudflare.py contract.py main.py telemetry.py telemetry_contract.py ./server/
 USER 10001:10001
 EXPOSE 8001
 HEALTHCHECK --interval=15s --timeout=3s --start-period=5s CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=2).close()"]
