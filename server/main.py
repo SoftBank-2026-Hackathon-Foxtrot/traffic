@@ -188,7 +188,8 @@ def platform_view(op):
             "beforeWeights": op["before_weights"], "afterWeights": op["after_weights"],
             "migrationId": op.get("command", {}).get("migrationId"),
             "transitionId": op.get("command", {}).get("transitionId"),
-            "result": op["result"], "error": op["error"]}
+            "result": op["result"], "error": op["error"],
+            "startedAt": op.get("started_at"), "finishedAt": op.get("finished_at")}
 
 
 @v1.get("/traffic/status", response_model=contract.Status, operation_id="getTrafficStatus",
@@ -203,7 +204,7 @@ async def platform_status():
     except Exception as error:
         raise HTTPException(502, str(error)) from error
     return {"revision": len(ops), "unknownOperationIds": [op["operation_id"] for op in unresolved(ops)],
-            "weights": weights, "pool_health": health, "last_changed_at": last["finished_at"] if last else None}
+            "weights": weights, "pool_health": health, "observedAt": now(), "last_changed_at": last["finished_at"] if last else None}
 
 
 @v1.post("/traffic/actions", status_code=202, response_model=contract.Accepted, operation_id="submitTrafficAction",
