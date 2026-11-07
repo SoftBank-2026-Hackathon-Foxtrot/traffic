@@ -4,3 +4,5 @@
 !cloudflare.py
 !contract.py
 !main.py
+!telemetry.py
+!telemetry_contract.py
