@@ -378,6 +378,28 @@
       },
       "Operation": {
         "properties": {
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startedat"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finishedat"
+          },
           "operationId": {
             "type": "string",
             "title": "Operationid"
@@ -763,6 +785,17 @@
               }
             ],
             "title": "Last Changed At"
+          },
+          "observedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observedat"
           }
         },
         "type": "object",

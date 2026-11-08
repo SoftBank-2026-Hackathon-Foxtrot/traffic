@@ -288,5 +288,23 @@ class TrafficAPITest(unittest.IsolatedAsyncioTestCase):
 
 
 
+    async def test_platform_operation_exposes_execution_times(self):
+        response = await self.client.post("/v1/traffic/actions", json={"action":"SET_WEIGHTS", "expectedRevision":0,
+            "weights":{"aws":90,"gcp":10}, "migrationId":"wf-observe", "transitionId":"t-1"},
+            headers={"Authorization":"Bearer demo-secret", "Idempotency-Key":"observed-times"})
+        self.assertEqual(response.status_code, 202, response.text)
+        item = response.json()["operationId"]
+        for _ in range(100):
+            operation = (await self.client.get("/v1/operations/"+item, headers={"Authorization":"Bearer demo-secret"})).json()
+            if operation["status"] not in ("QUEUED", "RUNNING"):
+                break
+            await asyncio.sleep(.01)
+        self.assertEqual(operation["status"], "SUCCEEDED")
+        self.assertIsNotNone(operation["startedAt"])
+        self.assertIsNotNone(operation["finishedAt"])
+        self.assertEqual(operation["migrationId"], "wf-observe")
+        self.assertEqual(operation["transitionId"], "t-1")
+
+
 if __name__ == "__main__":
     unittest.main()

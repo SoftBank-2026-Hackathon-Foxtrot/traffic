@@ -30,3 +30,7 @@ python scripts/scenario.py --apply
 **실측과 배포 상태.** 2026-11-05 전환·비율 유지·연결 조건 실험에서 HTTP 13,000건 중 실패 0건을 관찰했다. 이 수치는 당시 실험의 합계다. 제어 API의 관리 VPC 배포, 상시 관측, 서버 종료·세션 유지 검증은 후속 작업이다. [실측 결과](docs/traffic-verification-20261105.md) · [API 계약과 복구 절차](docs/api.md) · [AWS](docs/aws-setup.md) · [GCP](docs/gcp-setup.md) · [Cloudflare](docs/cloudflare-setup.md)
 
 온프렘 경로는 설계 단계다. [초기 설계·구축 기록](docs/initial-design.md) · [검증용 앱](testapp/README.md)
+
+## 마이그레이션 관측
+
+추가 필드와 연결 방법은 [관측 연결](docs/migration-observability.md)을 참고하세요.

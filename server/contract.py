@@ -57,6 +57,7 @@ class Status(BaseModel):
     weights: Weights
     pool_health: dict[str, dict]
     last_changed_at: str | None
+    observedAt: str | None = None
 
 
 class Accepted(BaseModel):
@@ -76,6 +77,8 @@ class RecoveryResult(ChangeResult):
 
 
 class Operation(BaseModel):
+    startedAt: str | None = None
+    finishedAt: str | None = None
     operationId: str
     action: Action
     status: Literal["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "UNKNOWN"]

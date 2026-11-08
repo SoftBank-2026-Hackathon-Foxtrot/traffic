@@ -1,4 +1,5 @@
 """실험용 트래픽 제어 API. 단일 프로세스(--workers 1)로 실행한다."""
+import asyncio
 import json
 import math
 import os
@@ -15,9 +16,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from .telemetry import TraceMiddleware, get_telemetry, publish_loop
+from opentelemetry.trace import Status, StatusCode
 from . import contract
 
 from .cloudflare import Cloudflare
+
+telemetry = get_telemetry("traffic")
 
 DB_PATH = Path(os.getenv("TRAFFIC_DB_PATH", "server/traffic.db"))
 
@@ -47,10 +52,19 @@ async def lifespan(app):
         if operation["status"] in ("PENDING", "RUNNING"):
             operation.update(status="FAILED" if operation["type"] == "reconcile" else "UNKNOWN", finished_at=now(), error="서버가 재시작되었습니다. 실제 LB 상태를 확인하세요.")
             save(operation)
-    yield
+    task = asyncio.create_task(publish_loop(telemetry, collect_observations))
+    try:
+        yield
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        await asyncio.to_thread(telemetry.close)
 
 
 app = FastAPI(title="Foxtrot Traffic Control API", version="1.0", lifespan=lifespan)
+
+
+app.add_middleware(TraceMiddleware, telemetry=telemetry)
 
 
 def cloudflare():
@@ -61,6 +75,16 @@ def cloudflare():
 
 
 async def execute(operation, cf):
+    with telemetry.operation(operation.get("command", {}).get("action", "EXECUTE"),
+                             workflow=operation.get("command", {}).get("migrationId", ""),
+                             operation=operation["operation_id"]) as span:
+        await _execute_work(operation, cf)
+        if operation["status"] != "SUCCEEDED":
+            span.set_status(Status(StatusCode.ERROR, operation["status"]))
+        telemetry.snapshot("TRAFFIC", observation(operation))
+
+
+async def _execute_work(operation, cf):
     operation.update(status="RUNNING", started_at=now())
     save(operation)
     patch_started = False
@@ -152,6 +176,16 @@ async def invalid_request(request: Request, error: RequestValidationError):
 
 
 async def reconcile(operation, previous, cf):
+    with telemetry.operation(operation.get("command", {}).get("action", "RECONCILE"),
+                             workflow=operation.get("command", {}).get("migrationId", ""),
+                             operation=operation["operation_id"]) as span:
+        await _reconcile_work(operation, previous, cf)
+        if operation["status"] != "SUCCEEDED":
+            span.set_status(Status(StatusCode.ERROR, operation["status"]))
+        telemetry.snapshot("TRAFFIC", observation(operation))
+
+
+async def _reconcile_work(operation, previous, cf):
     operation.update(status="RUNNING", started_at=now())
     save(operation)
     try:
@@ -188,7 +222,8 @@ def platform_view(op):
             "beforeWeights": op["before_weights"], "afterWeights": op["after_weights"],
             "migrationId": op.get("command", {}).get("migrationId"),
             "transitionId": op.get("command", {}).get("transitionId"),
-            "result": op["result"], "error": op["error"]}
+            "result": op["result"], "error": op["error"],
+            "startedAt": op.get("started_at"), "finishedAt": op.get("finished_at")}
 
 
 @v1.get("/traffic/status", response_model=contract.Status, operation_id="getTrafficStatus",
@@ -203,7 +238,7 @@ async def platform_status():
     except Exception as error:
         raise HTTPException(502, str(error)) from error
     return {"revision": len(ops), "unknownOperationIds": [op["operation_id"] for op in unresolved(ops)],
-            "weights": weights, "pool_health": health, "last_changed_at": last["finished_at"] if last else None}
+            "weights": weights, "pool_health": health, "observedAt": now(), "last_changed_at": last["finished_at"] if last else None}
 
 
 @v1.post("/traffic/actions", status_code=202, response_model=contract.Accepted, operation_id="submitTrafficAction",
@@ -275,3 +310,21 @@ async def platform_operation(operation_id: str, response: Response):
 
 
 app.include_router(v1)
+
+
+def observation(op):
+    return {"workflowId": op.get("command", {}).get("migrationId"),
+            "operationId": op["operation_id"], "action": op["type"], "status": op["status"],
+            "requestedAt": op["created_at"], "startedAt": op.get("started_at"),
+            "finishedAt": op.get("finished_at"), "requested": op.get("requested_weights"),
+            "applied": op.get("after_weights"), "configVerified": op["status"] == "SUCCEEDED",
+            "observed": {"observedAt": op.get("finished_at") or op.get("started_at") or op["created_at"]}}
+
+
+def collect_observations():
+    latest = {}
+    for op in history():
+        wid = op.get("command", {}).get("migrationId")
+        if wid and wid not in latest:
+            latest[wid] = ("TRAFFIC", observation(op))
+    return list(latest.values())[:256]
